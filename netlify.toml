@@ -1,0 +1,12 @@
+# Netlify configuration file
+# Configures a proxy rule to route /api/* requests to the FastAPI backend service.
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://heart-stroke-predictor-backend.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[build]
+  publish = "dist"
+  command = "npm run build"

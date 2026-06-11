@@ -1,8 +1,15 @@
 import { useState } from 'react'
 
-const BACKEND_URL = window.location.hostname.includes('tunnelmole.net') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'https://iwcodg-ip-103-182-107-157.tunnelmole.net/api'
-  : '/api';
+let baseBackendUrl = import.meta.env.VITE_BACKEND_URL || '';
+if (baseBackendUrl && !baseBackendUrl.endsWith('/api')) {
+  baseBackendUrl = baseBackendUrl.endsWith('/') ? `${baseBackendUrl}api` : `${baseBackendUrl}/api`;
+}
+
+const BACKEND_URL = baseBackendUrl || (
+  window.location.hostname.includes('tunnelmole.net') || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'https://iwcodg-ip-103-182-107-157.tunnelmole.net/api'
+    : '/api'
+);
 
 export default function App() {
   // Navigation & Authentication states
@@ -58,9 +65,18 @@ export default function App() {
         body: JSON.stringify(authForm)
       })
 
-      const data = await response.json()
+      let data = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      }
+
       if (!response.ok) {
-        throw new Error(data.detail || 'Authentication failed')
+        throw new Error(data?.detail || `Server error (${response.status}): ${response.statusText}`);
+      }
+
+      if (!data) {
+        throw new Error('No JSON data returned from the server.');
       }
 
       if (authMode === 'register') {
@@ -108,11 +124,20 @@ export default function App() {
         body: JSON.stringify(payload)
       })
 
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.detail || 'Prediction failed')
+      let data = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
       }
-      setResult(data)
+
+      if (!response.ok) {
+        throw new Error(data?.detail || `Server error (${response.status}): ${response.statusText}`);
+      }
+
+      if (!data) {
+        throw new Error('No JSON data returned from the server.');
+      }
+      setResult(data);
     } catch (err) {
       setPredictError(err.message)
     } finally {
