@@ -11,6 +11,59 @@ const BACKEND_URL = baseBackendUrl || (
     : '/api'
 );
 
+function generateMockPrediction(formData) {
+  let score = 2;
+  const age = parseFloat(formData.age);
+  if (age > 40) score += (age - 40) * 0.4;
+  if (age > 65) score += (age - 65) * 0.8;
+
+  if (parseInt(formData.hypertension) === 1) score += 15;
+  if (parseInt(formData.heart_disease) === 1) score += 20;
+
+  const glucose = parseFloat(formData.avg_glucose_level);
+  if (glucose > 140) score += (glucose - 140) * 0.1;
+
+  const bmi = parseFloat(formData.bmi);
+  if (bmi > 25) score += (bmi - 25) * 0.5;
+
+  if (formData.smoking_status === 'smokes') score += 10;
+  if (formData.smoking_status === 'formerly smoked') score += 5;
+
+  if (formData.ever_married === 'Yes') score += 2;
+
+  let probability = Math.min(0.99, Math.max(0.01, score / 100));
+  const prediction = probability > 0.5 ? 1 : 0;
+
+  const avg_bmi_cohort = Math.round((28.89 + (Math.random() - 0.5) * 2) * 100) / 100;
+  const avg_glucose_cohort = Math.round((106.14 + (Math.random() - 0.5) * 5) * 100) / 100;
+  
+  const percentile_glucose = Math.round(Math.min(99.9, Math.max(0.1, (glucose / 300) * 100)) * 10) / 10;
+  const percentile_bmi = Math.round(Math.min(99.9, Math.max(0.1, (bmi / 60) * 100)) * 10) / 10;
+
+  const age_cohort_rates = [0.2, 0.8, 1.5, 3.2, 5.1, 7.8, 11.2, 16.5, 22.4];
+  const stroke_rate_cohort = age_cohort_rates[Math.min(8, Math.floor(age / 10))];
+  
+  let stroke_rate_smoking = 4.8;
+  if (formData.smoking_status === 'smokes') stroke_rate_smoking = 7.2;
+  if (formData.smoking_status === 'formerly smoked') stroke_rate_smoking = 6.1;
+
+  return {
+    prediction,
+    probability: Math.round(probability * 1000) / 1000,
+    message: `The probability of having a stroke is ${Math.round(probability * 100)}%`,
+    username: "guest",
+    comparison: {
+      avg_bmi_cohort,
+      avg_glucose_cohort,
+      stroke_rate_cohort,
+      stroke_rate_smoking,
+      percentile_glucose,
+      percentile_bmi,
+      age_cohort_rates
+    }
+  };
+}
+
 export default function App() {
   // Navigation & Authentication states
   const [user, setUser] = useState('guest')
@@ -36,6 +89,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [predictError, setPredictError] = useState('')
   const [result, setResult] = useState(null)
+  const [isMockMode, setIsMockMode] = useState(false)
 
 
 
@@ -85,12 +139,12 @@ export default function App() {
         throw new Error('No JSON data returned from the server.');
       }
       setResult(data);
+      setIsMockMode(false);
     } catch (err) {
-      const isConnectionError = err.name === 'TypeError' || err.message.includes('Failed to fetch') || err.message.includes('Server error');
-      setPredictError(isConnectionError 
-        ? `${err.message}. (Tip: Ensure your backend service is running and VITE_BACKEND_URL is correctly configured in Netlify).` 
-        : err.message
-      );
+      console.warn("Backend prediction failed. Falling back to local offline heuristic model.", err);
+      const mockResult = generateMockPrediction(formData);
+      setResult(mockResult);
+      setIsMockMode(true);
     } finally {
       setLoading(false)
     }
@@ -98,7 +152,11 @@ export default function App() {
 
   const handleDownloadPDF = () => {
     if (!user) return
-    window.open(`${BACKEND_URL}/download-pdf/${user}`, '_blank')
+    if (isMockMode) {
+      window.print();
+    } else {
+      window.open(`${BACKEND_URL}/download-pdf/${user}`, '_blank')
+    }
   }
 
 
@@ -528,6 +586,12 @@ export default function App() {
             <div className="lg:col-span-6 flex flex-col justify-start space-y-6">
               {result ? (
                 <div className="space-y-6 w-full">
+                  {isMockMode && (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs flex items-center justify-center space-x-2 animate-fade-in">
+                      <span>⚡</span>
+                      <span>Running in Local Offline Mode. Predictions generated via client-side heuristics (Backend offline).</span>
+                    </div>
+                  )}
                   
                   {/* Row 1: Gauge (radial) & Trajectory Curve (SVG area chart) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
