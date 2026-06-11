@@ -13,11 +13,7 @@ const BACKEND_URL = baseBackendUrl || (
 
 export default function App() {
   // Navigation & Authentication states
-  const [user, setUser] = useState(null)
-  const [authMode, setAuthMode] = useState('login')
-  const [authForm, setAuthForm] = useState({ username: '', password: '' })
-  const [authError, setAuthError] = useState('')
-  const [authSuccess, setAuthSuccess] = useState('')
+  const [user, setUser] = useState('guest')
 
   // Form tab navigation state ('demographics', 'clinical', 'lifestyle')
   const [formTab, setFormTab] = useState('demographics')
@@ -41,60 +37,7 @@ export default function App() {
   const [predictError, setPredictError] = useState('')
   const [result, setResult] = useState(null)
 
-  // Auth handlers
-  const handleAuthChange = (e) => {
-    setAuthForm({ ...authForm, [e.target.name]: e.target.value })
-    setAuthError('')
-    setAuthSuccess('')
-  }
 
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault()
-    setAuthError('')
-    setAuthSuccess('')
-    if (!authForm.username || !authForm.password) {
-      setAuthError('Please fill in all credentials.')
-      return
-    }
-
-    try {
-      const endpoint = authMode === 'register' ? '/register/' : '/login/'
-      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authForm)
-      })
-
-      let data = null;
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      }
-
-      if (!response.ok) {
-        throw new Error(data?.detail || `Server error (${response.status}): ${response.statusText}`);
-      }
-
-      if (!data) {
-        throw new Error('No JSON data returned from the server.');
-      }
-
-      if (authMode === 'register') {
-        setAuthSuccess('Registration successful! Please login below.')
-        setAuthMode('login')
-        setAuthForm({ ...authForm, password: '' })
-      } else {
-        setUser(data.username)
-        setResult(null)
-      }
-    } catch (err) {
-      const isConnectionError = err.name === 'TypeError' || err.message.includes('Failed to fetch') || err.message.includes('Server error');
-      setAuthError(isConnectionError 
-        ? `${err.message}. (Tip: Ensure your backend service is running and VITE_BACKEND_URL is correctly configured in Netlify).` 
-        : err.message
-      );
-    }
-  }
 
   // Form input change handlers
   const handleFormChange = (name, value) => {
@@ -158,11 +101,7 @@ export default function App() {
     window.open(`${BACKEND_URL}/download-pdf/${user}`, '_blank')
   }
 
-  const handleLogout = () => {
-    setUser(null)
-    setAuthForm({ username: '', password: '' })
-    setResult(null)
-  }
+
 
   // Risk curve calculations
   let pointsStr = ""
@@ -212,106 +151,18 @@ export default function App() {
           </div>
         </div>
 
-        {user && (
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-sm text-slate-300">
-                Operator: <span className="font-bold text-white">{user}</span>
-              </span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all cursor-pointer"
-            >
-              Sign Out
-            </button>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span className="text-sm text-slate-300">
+              System Status: <span className="font-bold text-emerald-400">Online</span>
+            </span>
           </div>
-        )}
+        </div>
       </header>
 
       {/* Main Container */}
       <main className="max-w-7xl w-full mx-auto flex-grow flex items-center justify-center my-4">
-        {!user ? (
-          /* Authentication Screen */
-          <div className="max-w-md w-full glass-panel rounded-3xl shadow-2xl p-8 border border-indigo-900/20 animate-fade-in">
-            <div className="text-center mb-8">
-              <div className="mx-auto h-12 w-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-4 text-2xl">
-                🔐
-              </div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
-                {authMode === 'login' ? 'Nexus Console' : 'Secure Register'}
-              </h2>
-              <p className="text-sm text-slate-400">
-                {authMode === 'login' 
-                  ? 'Access the data comparative prediction core' 
-                  : 'Establish a new analytical database operator'}
-              </p>
-            </div>
-
-            {authError && (
-              <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 text-center flex items-center justify-center space-x-2">
-                <span>⚠️</span>
-                <span>{authError}</span>
-              </div>
-            )}
-
-            {authSuccess && (
-              <div className="mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 text-center flex items-center justify-center space-x-2">
-                <span>✨</span>
-                <span>{authSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Operator ID</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={authForm.username}
-                  onChange={handleAuthChange}
-                  className="w-full px-4 py-3 bg-slate-900/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
-                  placeholder="e.g. doctor_jones"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Access Credentials</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={authForm.password}
-                  onChange={handleAuthChange}
-                  className="w-full px-4 py-3 bg-slate-900/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
-                  placeholder="••••••••"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 mt-4 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 cursor-pointer"
-              >
-                {authMode === 'login' ? 'Initialize Interface' : 'Establish Operator'}
-              </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => {
-                  setAuthMode(authMode === 'login' ? 'register' : 'login')
-                  setAuthError('')
-                  setAuthSuccess('')
-                }}
-                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-              >
-                {authMode === 'login' 
-                  ? "Need operator clearance? Register here" 
-                  : 'Already hold operator credentials? Access panel'}
-              </button>
-            </div>
-          </div>
-        ) : (
           /* Main Dashboard Layout */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full items-stretch animate-scale-in">
             
@@ -914,7 +765,6 @@ export default function App() {
               )}
             </div>
           </div>
-        )}
       </main>
 
       {/* Footer */}

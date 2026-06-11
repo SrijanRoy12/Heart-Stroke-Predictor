@@ -152,9 +152,7 @@ def login_user(user: RegisterInput):
 @app.post("/api/predict/")
 def predict_stroke_risk(input_data: StrokeInput):
     try:
-        if input_data.username not in users:
-            raise HTTPException(status_code=401, detail="User not registered.")
-
+        # Bypassed registration check for unauthenticated usage
         raw_data = input_data.dict()
         username = raw_data.pop('username')
         encoded_data = encode_input(raw_data)
