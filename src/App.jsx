@@ -88,7 +88,11 @@ export default function App() {
         setResult(null)
       }
     } catch (err) {
-      setAuthError(err.message)
+      const isConnectionError = err.name === 'TypeError' || err.message.includes('Failed to fetch') || err.message.includes('Server error');
+      setAuthError(isConnectionError 
+        ? `${err.message}. (Tip: Ensure your backend service is running and VITE_BACKEND_URL is correctly configured in Netlify).` 
+        : err.message
+      );
     }
   }
 
@@ -139,7 +143,11 @@ export default function App() {
       }
       setResult(data);
     } catch (err) {
-      setPredictError(err.message)
+      const isConnectionError = err.name === 'TypeError' || err.message.includes('Failed to fetch') || err.message.includes('Server error');
+      setPredictError(isConnectionError 
+        ? `${err.message}. (Tip: Ensure your backend service is running and VITE_BACKEND_URL is correctly configured in Netlify).` 
+        : err.message
+      );
     } finally {
       setLoading(false)
     }
